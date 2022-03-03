@@ -8,9 +8,22 @@
 #include <iterator>
 #include <algorithm>
 
-std::vector<std::vector<std::string>> getList(std::map<std::string, std::vector<std::vector<std::string>>> l, const std::string& c)
+typedef std::vector<std::vector<std::string>> table_type;
+typedef std::map<std::string, table_type> map_table_type;
+
+static int select_data(const char *s, std::string &sql, table_type *table);
+
+table_type getList(map_table_type *l, const std::string& c)
 {
-    return l[c];
+    return (*l)[c];
+}
+
+std::vector<std::string> getSelectStatements(const char *db, const string &param)
+{
+    std::vector<std::string> selectStatements = getSqlSelectStatementsByParam(param);
+    if (selectStatements.empty()) throw std::runtime_error("There is no data.");
+
+    return selectStatements;
 }
 
 std::vector<std::string> parseRow(std::string s)
@@ -36,26 +49,22 @@ std::vector<std::string> parseRow(std::string s)
     return fields;
 }
 
-std::vector<std::vector<std::string>> readCsv(const std::string& filename)
+table_type readCsv(const std::string& filename)
 {
     std::fstream ifs;
     ifs.open("csv/" + filename);
     if (!ifs)
         throw std::runtime_error("couldn't open file");
 
-    std::vector<std::vector<std::string>> data;
+    table_type data;
     std::string s;
     int i = 0;
-//    std::istringstream ss;
 
     while(std::getline(ifs, s))
     {
-//        std::cout << "Tohle je s: " << s << std::endl;
         i++;
         if (i <= 1) continue;
         auto fields = parseRow(s);
-//        for(std::string s: fields)
-//            std::cout << s << " - " << std::endl;
         data.push_back(fields);
     }
 
@@ -63,15 +72,21 @@ std::vector<std::vector<std::string>> readCsv(const std::string& filename)
 
     return data;
 }
-
-static int callback(void *NotUsed, int argc, char **argv, char **azColName)
+// retrieve contents of database used by selectData()
+/* argc: holds the number of results, azColName: holds each column returned in array, argv: holds each value in array */
+static int callback(void *ptr, int argc, char **argv, char **azColName)
 {
     int i;
+    table_type *table = static_cast<table_type*>(ptr);
+    std::vector<std::string> row;
+
     for (i = 0; i < argc; i++)
     {
-        std::cout << azColName[i] << " = " << argv[i] ? argv[i] : "NULL";
+        row.emplace_back(argv[i] ? argv[i] : "NULL");
+        std::cout << azColName[i] << " = " << (argv[i] ? argv[i] : "NULL") << std::endl;
     }
     std::cout << "\n";
+    table->emplace_back(row);
 
     return 0;
 }
@@ -130,49 +145,29 @@ static int insert_data(const char *s, std::string &sql)
     return 0;
 }
 
-int main(int argc, char *argv[]) {
-    httplib::Server svr;
+static int select_data(const char *s, std::string &sql, table_type *table)
+{
     sqlite3 *db;
+    int rc = sqlite3_open(s, &db);
     char *zErrMsg;
-    int rc;
-    const char *db_name = "geostats.db";
 
-    vector<string> categories = getCategories();
-    vector<string> tables = getCreateTableQuery();
+    rc = sqlite3_exec(db, sql.c_str(), callback, table, &zErrMsg);
 
-    create_db(db_name);
-    create_table(db_name, tables);
-
-    if (argc < 2)
-        throw std::runtime_error("no filename entered");
-
-    int i = 1;
-    std::string filename;
-    std::string category;
-    std::vector<std::vector<std::string>> data;
-    std::map<std::string, std::vector<std::vector<std::string>>> list;
-
-    while(argv[i])
-    {
-        filename = argv[i];
-        category = filename.substr(0, filename.find('.'));
-
-        try {
-            data = readCsv(filename);
-        }
-        catch(std::exception &e)
-        {
-            std::cout << e.what() << std::endl;
-        }
-
-        list.insert({ category, data });
-        i++;
+    if (rc != SQLITE_OK) {
+        std::cerr << "SQL Error: " << zErrMsg << ": " << sql << std::endl;
+        sqlite3_free(zErrMsg);
+    } else {
+        std::cout << "Operation done successfully!" << std::endl;
     }
 
-    // insert data
+    return 0;
+}
+
+void prepareDataAndInsertToDb(const char *db, std::vector<std::string> &categories, map_table_type *list)
+{
     for(const std::string& s: categories)
     {
-        std::vector<std::vector<std::string>> c = getList(list, s);
+        table_type c = getList(list, s);
         string sql_statement;
 
         for(std::vector<std::string>row: c)
@@ -191,21 +186,63 @@ int main(int argc, char *argv[]) {
             oss << row.back();
             sql_statement += oss.str();
             sql_statement += ");";
-            insert_data(db_name, sql_statement);
+            insert_data(db, sql_statement);
             std::cout << sql_statement << endl;
         }
     }
+}
+
+int main(int argc, char *argv[]) {
+    httplib::Server svr;
+    const char *db_name = "geostats.db";
+
+    create_db(db_name);
+
+    std::vector<std::string> tables = getCreateTableQuery();
+    create_table(db_name, tables);
+
+    table_type
+    data;
+    map_table_type list;
+
+    std::vector<std::string> categories = getCategories();
+    for(const std::string& category: categories)
+    {
+        std::string filename = category + ".csv";
+
+        try {
+            data = readCsv(filename);
+        }
+        catch(std::exception &e)
+        {
+            std::cout << e.what() << std::endl;
+        }
+
+        list.insert({ category, data });
+    }
+
+    prepareDataAndInsertToDb(db_name, categories, &list);
 
     svr.Get(R"(/(\w+))", [&](const httplib::Request& req, httplib::Response& res) {
-        category = req.matches[1];
-        std::vector<std::vector<std::string>> result = getList(list, category);
-        nlohmann::json from_map(list);
-        nlohmann::json from_array(result);
+        std::string param = req.matches[1];
+        std::vector<std::string> queryGroups = getSelectStatements(db_name, param);
 
-        if (result.empty())
+        map_table_type selectList {};
+
+        for(const std::string &s: queryGroups) {
+            table_type table;
+            std::string query = getSqlSelectStatement(s);
+            select_data(db_name, query, &table);
+            selectList.insert({ s, table });
+        }
+
+        nlohmann::json from_map(selectList);
+//        nlohmann::json from_array(table);
+
+        if (selectList.empty())
             res.set_content("404 Not found", "text/plain");
         else
-            res.set_content(from_array.dump(), "application/json");
+            res.set_content(from_map.dump(), "application/json");
     });
 
     svr.listen("0.0.0.0", 8080);
