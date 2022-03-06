@@ -1,4 +1,3 @@
-lib/*
 csv/*
 cmake-build-*
 .idea/*

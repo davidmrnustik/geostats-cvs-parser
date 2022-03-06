@@ -1,22 +1,14 @@
 #include <iostream>
 #include <vector>
-#include <map>
 #include <httplib.h>
 #include <json.hpp>
 #include <sqlite3.h>
 #include "schemas.h"
 #include <iterator>
 #include <algorithm>
-
-typedef std::vector<std::vector<std::string>> table_type;
-typedef std::map<std::string, table_type> map_table_type;
+#include "utils.h"
 
 static int select_data(const char *s, std::string &sql, table_type *table);
-
-table_type getList(map_table_type *l, const std::string& c)
-{
-    return (*l)[c];
-}
 
 std::vector<std::string> getSelectStatements(const char *db, const string &param)
 {
