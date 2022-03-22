@@ -1,5 +1,5 @@
 ## Geostats (WIP)
-Backend service for GeoStats application. Service creates following REST API endpoints:
+Backend service for GeoStats application. Service parses locally stored *.csv files, creates SQLite DB, tables and seeds data. Service also creates following REST API endpoints and run server at port `8080`:
 - **GET** http://localhost:8080/asia
 - **GET** http://localhost:8080/europe
 - **GET** http://localhost:8080/africa
