@@ -3,24 +3,16 @@ project(geostats_cvs_parser)
 include(FetchContent)
 
 set(CMAKE_CXX_STANDARD 14)
-
 set(JSON_Install OFF CACHE INTERNAL "")
 
 # It alleviates some issues on Windows systems about compile-option incompatibility.
 # This forces a default behavior for the googletest to be compatible with the defaults on your own project.
 set (gtest_force_shared_crt ON CACHE BOOL "MSVC defaults to shared CRT" FORCE)
 
-#find_package(json 3.2.0 REQUIRED)
-
 # Fix for undefined reference to `pthread_create`
 # https://stackoverflow.com/questions/53795731/undefined-reference-to-pthread-create-clion
 set(CMAKE_CXX_FLAGS -pthread)
 set(LIB_PATH lib)
-
-#add_subdirectory(${LIB_PATH}/json)
-#add_subdirectory(${LIB_PATH}/cpp-httplib)
-#add_subdirectory(${LIB_PATH}/sqlite3-cmake)
-#add_subdirectory(${LIB_PATH}/googletest)
 
 FetchContent_Declare(
     googletest
@@ -39,43 +31,13 @@ FetchContent_Declare(
     httplib
     GIT_REPOSITORY https://github.com/yhirose/cpp-httplib.git
 )
-
 FetchContent_MakeAvailable(googletest sqlite3-cmake nlohmann_json httplib)
-
-FetchContent_GetProperties(httplib)
-if(NOT httplib_POPULATED)
-    # Fetch the content using previously declared details
-    FetchContent_Populate(httplib)
-
-    # Bring the populated content into the build
-    add_subdirectory(${httplib_SOURCE_DIR} ${httplib_BINARY_DIR})
-endif()
-
-FetchContent_GetProperties(nlohmann_json)
-if(NOT nlohmann_json_POPULATED)
-    # Fetch the content using previously declared details
-    FetchContent_Populate(nlohmann_json)
-
-    # Bring the populated content into the build
-    add_subdirectory(${nlohmann_json_SOURCE_DIR} ${nlohmann_json_BINARY_DIR})
-endif()
 
 add_library(utils utils.cpp)
 
-#find_library(SQLite3 NAMES sqlite3 PATHS ${LIB_PATH}/sqlite)
-
-#include_directories(${LIB_PATH}/json/single_include/nlohmann)
 include_directories(${LIB_PATH}/cpp-httplib)
-#include_directories(${LIB_PATH}/sqlite3-cmake/src)
-#include_directories(/usr/local/include)
 
-add_executable(geostats_cvs_parser main.cpp schemas.h)
-#add_executable(geostats_cvs_parser_sqlite ${LIB_PATH}/sqlite/sqlite3.c)
-
-#add_library(sqlite_library STATIC ${LIB_PATH}/sqlite/sqlite3.c)
-
-#find_library(SQLITE_LIBRARY sqlite_library ${LIB_PATH}/sqlite)
-#find_library(SQLITE_LIBRARY sqlite_library ${LIB_PATH}/sqlite3-cmake)
+add_executable(geostats_cvs_parser main.cpp sql_statements.h)
 
 target_compile_definitions(gtest
     PUBLIC
@@ -101,7 +63,3 @@ target_link_libraries(tests gtest gtest_main utils)
 # ${CMAKE_DL_LIBS}
 # https://gist.github.com/kwk/3595733
 target_link_libraries(geostats_cvs_parser PRIVATE nlohmann_json::nlohmann_json sqlite3 httplib ${CMAKE_DL_LIBS} PUBLIC utils)
-
-#target_link_libraries(geostats_cvs_parser LINK_PUBLIC ${SQLITE_LIBRARY})
-
-#target_include_directories(geostats_cvs_parser PRIVATE ${INCLUDE_DIRS})

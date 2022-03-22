@@ -3,7 +3,7 @@
 #include <httplib.h>
 #include <nlohmann/json.hpp>
 #include <sqlite3.h>
-#include "schemas.h"
+#include "sql_statements.h"
 #include <iterator>
 #include <algorithm>
 #include "utils.h"
@@ -20,6 +20,7 @@ std::vector<std::string> getSelectStatements(const char *db, const string &param
 
 std::vector<std::string> parseRow(std::string s)
 {
+    // TODO: it's possible to do parse by C function strtok()?
     std::vector<std::string> fields {""};
     std::string f;
     size_t i = 0;
@@ -185,6 +186,7 @@ void prepareDataAndInsertToDb(const char *db, std::vector<std::string> &categori
 }
 
 int main(int argc, char *argv[]) {
+    // TODO: Server as class
     httplib::Server svr;
     const char *db_name = "geostats.db";
 
@@ -213,6 +215,7 @@ int main(int argc, char *argv[]) {
         list.insert({ category, data });
     }
 
+    // TODO: check if data has been already seeded
     prepareDataAndInsertToDb(db_name, categories, &list);
 
     svr.Get(R"(/(\w+))", [&](const httplib::Request& req, httplib::Response& res) {
@@ -229,7 +232,6 @@ int main(int argc, char *argv[]) {
         }
 
         nlohmann::json from_map(selectList);
-//        nlohmann::json from_array(table);
 
         if (selectList.empty())
             res.set_content("404 Not found", "text/plain");
@@ -238,5 +240,4 @@ int main(int argc, char *argv[]) {
     });
 
     svr.listen("0.0.0.0", 8080);
-//    return 0;
 }

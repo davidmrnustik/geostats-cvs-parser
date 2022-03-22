@@ -2,8 +2,8 @@
 // Created by David Mrnustik on 1/3/22.
 //
 
-#ifndef GEOSTATS_CVS_PARSER_SCHEMAS_H
-#define GEOSTATS_CVS_PARSER_SCHEMAS_H
+#ifndef GEOSTATS_CVS_PARSER_SQL_STATEMENTS_H
+#define GEOSTATS_CVS_PARSER_SQL_STATEMENTS_H
 
 #include <string>
 #include <vector>
@@ -385,4 +385,4 @@ vector<string> getCreateTableQuery() {
     };
 }
 
-#endif //GEOSTATS_CVS_PARSER_SCHEMAS_H
+#endif //GEOSTATS_CVS_PARSER_SQL_STATEMENTS_H
