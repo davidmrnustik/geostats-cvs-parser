@@ -1,4 +1,4 @@
-csv/*
+cmake-build-debug/csv/*
 cmake-build-*
 .idea/*
 *.db
